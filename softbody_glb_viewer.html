@@ -1,0 +1,502 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Visor GLB — Soft / Flácido (Demo)</title>
+  <style>
+    :root{--bg:#0b1020;--panel:rgba(255,255,255,0.06);--accent:#7ad0ff}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #08111a 100%);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
+    #app{height:100%;display:grid;grid-template-columns:1fr 340px;gap:12px;padding:12px}
+    canvas{width:100%;height:100%;display:block;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
+    .panel{background:var(--panel);padding:12px;border-radius:10px;color:#e6eef6;backdrop-filter:blur(6px);overflow:auto}
+    .controls h2{margin:0 0 8px 0;font-size:14px}
+    .row{display:flex;gap:8px;align-items:center;margin:8px 0}
+    label{font-size:12px;min-width:110px}
+    input[type=range]{width:100%}
+    button{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:8px;border-radius:8px;color:#e6eef6;cursor:pointer}
+    .accent{border-color:var(--accent);box-shadow:0 4px 12px rgba(122,208,255,0.06)}
+    .small{font-size:12px;color:#bcd6e8}
+    .file{display:block;padding:8px;background:rgba(255,255,255,0.02);border-radius:6px}
+    .hint{font-size:12px;color:#9fb9d0;margin-top:6px}
+    footer{color:#7f9fb4;font-size:12px;margin-top:10px}
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div style="position:relative">
+      <canvas id="c"></canvas>
+      <div style="position:absolute;left:12px;top:12px;background:rgba(0,0,0,0.25);padding:8px;border-radius:8px;color:#dff4ff;font-size:13px">
+        <div style="font-weight:700">Visor GLB — Softbody</div>
+        <div class="small">Click / arrastra para agarrar. "Play dead" hace el modelo muy flácido.</div>
+      </div>
+    </div>
+
+    <aside class="panel controls">
+      <h2>Cargar modelo .glb</h2>
+      <div class="row">
+        <input id="file" class="file" type="file" accept=".glb,.gltf" />
+      </div>
+      <div class="hint">Arrastra un archivo .glb aquí o usa el selector. (También puedes cargar modelos ligeros para mejor rendimiento).</div>
+
+      <h2 style="margin-top:12px">Controles físicos</h2>
+      <div class="row"><label>Gravedad</label><input id="gravity" type="range" min="-30" max="30" step="0.1" value="-9.8" /></div>
+      <div class="row"><label>Rigidez (shape)</label><input id="stiffness" type="range" min="0" max="1" step="0.01" value="0.15" /></div>
+      <div class="row"><label>Damping</label><input id="damping" type="range" min="0" max="0.5" step="0.005" value="0.02" /></div>
+      <div class="row"><label>Masa (global)</label><input id="mass" type="range" min="0.01" max="5" step="0.01" value="1" /></div>
+      <div class="row"><label>Iter. constraints</label><input id="iters" type="range" min="1" max="8" step="1" value="3" /></div>
+
+      <h2 style="margin-top:12px">Agarrar y manipular</h2>
+      <div class="row"><label>Radio grab (m)</label><input id="grabRadius" type="range" min="0.01" max="1" step="0.01" value="0.12" /></div>
+      <div class="row"><label>Fuerza grab</label><input id="grabStrength" type="range" min="0.01" max="1" step="0.01" value="0.9" /></div>
+      <div class="row"><button id="playDead">Hacerse el muerto</button><button id="reset">Restablecer</button></div>
+
+      <h2 style="margin-top:12px">Opciones</h2>
+      <div class="row"><label>Mostrar malla</label><input id="showMesh" type="checkbox" checked /></div>
+      <div class="row"><label>Mostrar normales</label><input id="showNormals" type="checkbox" /></div>
+
+      <footer>
+        Sugerencias: usar modelos de baja a media resolución (1000–30000 vértices) para buena fluidez. Para pelo/parts flácidas, separa esas piezas en su propio mesh en el .glb.
+      </footer>
+    </aside>
+  </div>
+
+  <script type="module">
+  import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
+  import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js';
+  import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
+
+  const canvas = document.getElementById('c');
+  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setSize(window.innerWidth - 360, window.innerHeight - 24);
+  renderer.outputEncoding = THREE.sRGBEncoding;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x071021);
+
+  const camera = new THREE.PerspectiveCamera(50, (window.innerWidth-360) / (window.innerHeight-24), 0.05, 2000);
+  camera.position.set(0, 0.8, 2.2);
+
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0,0.4,0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.1;
+
+  // Lights
+  const hemi = new THREE.HemisphereLight(0x99c8ff, 0x202033, 0.8);
+  scene.add(hemi);
+  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+  dir.position.set(3,6,2);
+  scene.add(dir);
+
+  // ground ("infinito" visual)
+  const grid = new THREE.GridHelper(200,200,0x264f5f,0x12313b);
+  grid.position.y = 0;
+  grid.material.opacity = 0.6;
+  grid.material.transparent = true;
+  scene.add(grid);
+
+  const floorYDefault = -0.8; // will be adjusted on load
+  let floorY = floorYDefault;
+
+  // helper
+  const raycaster = new THREE.Raycaster();
+  const pointer = new THREE.Vector2();
+
+  // soft-body management
+  const softMeshes = new Map(); // mesh -> SoftBody
+
+  class SoftBody {
+    constructor(mesh){
+      this.mesh = mesh;
+      this.geometry = mesh.geometry.clone();
+      // ensure non-indexed for simple mapping
+      if(this.geometry.index) this.geometry = this.geometry.toNonIndexed();
+      this.positionAttr = this.geometry.attributes.position;
+      this.vertexCount = this.positionAttr.count;
+
+      // copy rest positions
+      this.rest = new Float32Array(this.vertexCount*3);
+      this.pos = new Float32Array(this.vertexCount*3);
+      this.prev = new Float32Array(this.vertexCount*3);
+      this.vel = new Float32Array(this.vertexCount*3);
+      this.mass = 1;
+
+      for(let i=0;i<this.vertexCount;i++){
+        const x = this.positionAttr.getX(i);
+        const y = this.positionAttr.getY(i);
+        const z = this.positionAttr.getZ(i);
+        this.rest[i*3] = x; this.rest[i*3+1] = y; this.rest[i*3+2] = z;
+        this.pos[i*3] = x; this.pos[i*3+1] = y; this.pos[i*3+2] = z;
+        this.prev[i*3] = x; this.prev[i*3+1] = y; this.prev[i*3+2] = z;
+        this.vel[i*3] = 0; this.vel[i*3+1] = 0; this.vel[i*3+2] = 0;
+      }
+
+      // Extract edges from triangles
+      this.edges = new Map(); // key -> {a,b,restLen}
+      for(let i=0;i<this.vertexCount;i+=3){
+        const a=i, b=i+1, c=i+2;
+        addEdge(a,b,this);
+        addEdge(b,c,this);
+        addEdge(c,a,this);
+      }
+      function addEdge(a,b(self)){}
+    }
+  }
+
+  // Because the JS engine doesn't like nested function with dynamic name, we'll define addEdge here:
+  function buildSoftBody(mesh){
+    const sb = {
+      mesh,
+      geometry: mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone(),
+      positionAttr: null,
+      vertexCount: 0,
+      rest:null,pos:null,prev:null,vel:null,mass:1,
+      edges:[],edgeMap:new Map(),
+      constraintIterations:3
+    };
+    if(sb.geometry.index) sb.geometry = sb.geometry.toNonIndexed();
+    sb.positionAttr = sb.geometry.attributes.position;
+    sb.vertexCount = sb.positionAttr.count;
+    sb.rest = new Float32Array(sb.vertexCount*3);
+    sb.pos = new Float32Array(sb.vertexCount*3);
+    sb.prev = new Float32Array(sb.vertexCount*3);
+    sb.vel = new Float32Array(sb.vertexCount*3);
+    for(let i=0;i<sb.vertexCount;i++){
+      const x = sb.positionAttr.getX(i);
+      const y = sb.positionAttr.getY(i);
+      const z = sb.positionAttr.getZ(i);
+      sb.rest[i*3]=x; sb.rest[i*3+1]=y; sb.rest[i*3+2]=z;
+      sb.pos[i*3]=x; sb.pos[i*3+1]=y; sb.pos[i*3+2]=z;
+      sb.prev[i*3]=x; sb.prev[i*3+1]=y; sb.prev[i*3+2]=z;
+    }
+    // edges
+    const edgeMap = new Map();
+    for(let i=0;i<sb.vertexCount;i+=3){
+      const a=i, b=i+1, c=i+2;
+      addEdgeLocal(a,b,sb,edgeMap);
+      addEdgeLocal(b,c,sb,edgeMap);
+      addEdgeLocal(c,a,sb,edgeMap);
+    }
+    sb.edges = Array.from(edgeMap.values());
+    sb.edgeMap = edgeMap;
+    return sb;
+  }
+  function addEdgeLocal(a,b,sb,edgeMap){
+    const key = a<b? `${a}_${b}`:`${b}_${a}`;
+    if(edgeMap.has(key)) return;
+    const ax = sb.rest[a*3], ay = sb.rest[a*3+1], az = sb.rest[a*3+2];
+    const bx = sb.rest[b*3], by = sb.rest[b*3+1], bz = sb.rest[b*3+2];
+    const dx = bx-ax, dy = by-ay, dz = bz-az;
+    const len = Math.hypot(dx,dy,dz);
+    const e = {a,b,restLen:len};
+    edgeMap.set(key,e);
+  }
+
+  // active soft bodies
+  const softList = [];
+
+  // simulation params (driven by UI)
+  const params = {
+    gravity:-9.8,
+    stiffness:0.15,
+    damping:0.02,
+    mass:1,
+    iters:3,
+    bounce:0.12,
+    friction:0.9,
+    grabRadius:0.12,
+    grabStrength:0.9
+  };
+
+  // pointer grabbing state
+  let grabbing = null; // {soft, indices: [{i,weight}], targetLocal:Vector3}
+
+  function onPointerDown(e){
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(pointer, camera);
+    const intersects = raycaster.intersectObjects(Array.from(softMeshes.keys()), true);
+    if(intersects.length===0) return;
+    const it = intersects[0];
+    // find soft body corresponding to it.object (ascending)
+    let obj = it.object;
+    while(obj && !softMeshes.has(obj)) obj = obj.parent;
+    // try mapping
+    let soft = null;
+    if(!obj){
+      // find by parent chain in map
+      for(const [mesh,sb] of softMeshes.entries()){
+        if(it.object.isMesh && it.object === mesh) { soft = sb; break; }
+        if(it.object.isObject3D && mesh.isObject3D && it.object === mesh) { soft = sb; break; }
+      }
+    } else soft = softMeshes.get(obj);
+
+    if(!soft){
+      // fallback: search nearest soft by distance
+      let best = null, bestDist=Infinity;
+      for(const sb of softList){
+        const dist = it.point.distanceTo(sb.mesh.getWorldPosition(new THREE.Vector3()));
+        if(dist<bestDist){bestDist=dist;best=sb}
+      }
+      soft = best;
+    }
+    if(!soft) return;
+
+    // compute target world on plane through intersection
+    const plane = new THREE.Plane();
+    const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir).negate();
+    plane.setFromNormalAndCoplanarPoint(camDir, it.point);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, target);
+
+    // convert target world to mesh local
+    const targetLocal = soft.mesh.worldToLocal(target.clone());
+
+    // find nearby vertices
+    const radius = params.grabRadius;
+    const candidates = [];
+    for(let i=0;i<soft.vertexCount;i++){
+      const vx = soft.pos[i*3], vy = soft.pos[i*3+1], vz = soft.pos[i*3+2];
+      const dx = vx - targetLocal.x, dy = vy - targetLocal.y, dz = vz - targetLocal.z;
+      const d2 = dx*dx+dy*dy+dz*dz;
+      if(d2 <= radius*radius){
+        const w = 1 - Math.sqrt(d2)/radius;
+        candidates.push({i,weight:w});
+      }
+    }
+    if(candidates.length===0) return;
+    grabbing = {soft, indices:candidates, targetLocal};
+    // prevent orbit while grabbing
+    controls.enabled = false;
+  }
+
+  function onPointerMove(e){
+    const rect = renderer.domElement.getBoundingClientRect();
+    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    if(!grabbing) return;
+    // update target world
+    raycaster.setFromCamera(pointer, camera);
+    const plane = new THREE.Plane();
+    const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir).negate();
+    // use point on mesh world as coplanar
+    const worldPoint = grabbing.soft.mesh.localToWorld(new THREE.Vector3(grabbing.targetLocal.x, grabbing.targetLocal.y, grabbing.targetLocal.z));
+    plane.setFromNormalAndCoplanarPoint(camDir, worldPoint);
+    const target = new THREE.Vector3();
+    raycaster.ray.intersectPlane(plane, target);
+    grabbing.targetLocal = grabbing.soft.mesh.worldToLocal(target.clone());
+  }
+
+  function onPointerUp(e){
+    grabbing = null;
+    controls.enabled = true;
+  }
+
+  renderer.domElement.addEventListener('pointerdown', onPointerDown);
+  window.addEventListener('pointermove', onPointerMove);
+  window.addEventListener('pointerup', onPointerUp);
+
+  // UI bindings
+  const fileInput = document.getElementById('file');
+  fileInput.addEventListener('change', async (ev)=>{
+    if(!ev.target.files || ev.target.files.length===0) return;
+    const f = ev.target.files[0];
+    const url = URL.createObjectURL(f);
+    await loadGLB(url);
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('gravity').addEventListener('input', (e)=>{ params.gravity = parseFloat(e.target.value); });
+  document.getElementById('stiffness').addEventListener('input', (e)=>{ params.stiffness = parseFloat(e.target.value); });
+  document.getElementById('damping').addEventListener('input', (e)=>{ params.damping = parseFloat(e.target.value); });
+  document.getElementById('mass').addEventListener('input', (e)=>{ params.mass = parseFloat(e.target.value); });
+  document.getElementById('iters').addEventListener('input', (e)=>{ params.iters = parseInt(e.target.value); });
+  document.getElementById('grabRadius').addEventListener('input', (e)=>{ params.grabRadius = parseFloat(e.target.value); });
+  document.getElementById('grabStrength').addEventListener('input', (e)=>{ params.grabStrength = parseFloat(e.target.value); });
+  document.getElementById('playDead').addEventListener('click', ()=>{
+    // toggle: make stiffness very low for "dead" effect, then slowly restore
+    params.stiffness = 0.01;
+    document.getElementById('stiffness').value = params.stiffness;
+  });
+  document.getElementById('reset').addEventListener('click', ()=>{
+    // reset scene
+    for(const sb of softList){
+      for(let i=0;i<sb.vertexCount;i++){
+        sb.pos[i*3] = sb.rest[i*3]; sb.pos[i*3+1] = sb.rest[i*3+1]; sb.pos[i*3+2] = sb.rest[i*3+2];
+        sb.vel[i*3]=sb.vel[i*3+1]=sb.vel[i*3+2]=0;
+      }
+    }
+  });
+
+  document.getElementById('showMesh').addEventListener('change',(e)=>{ for(const sb of softList) sb.mesh.visible = e.target.checked; });
+  document.getElementById('showNormals').addEventListener('change',(e)=>{ for(const sb of softList) {
+    if(e.target.checked){
+      if(!sb._normHelper){
+        sb._normHelper = new THREE.VertexNormalsHelper(sb.mesh, 0.04, 0xffffaa);
+        scene.add(sb._normHelper);
+      }
+    } else { if(sb._normHelper) { scene.remove(sb._normHelper); sb._normHelper = null; } }
+  }});
+
+  // load GLB
+  const loader = new GLTFLoader();
+  async function loadGLB(url){
+    try{
+      const gltf = await loader.loadAsync(url);
+      // clear existing soft bodies and objects
+      for(const sb of softList){ scene.remove(sb.mesh); }
+      softList.length = 0; softMeshes.clear();
+
+      // add gltf scene
+      const root = gltf.scene || gltf.scenes[0];
+      scene.add(root);
+
+      // compute bounding box to scale and position nicely
+      const box = new THREE.Box3().setFromObject(root);
+      const size = new THREE.Vector3(); box.getSize(size);
+      const center = new THREE.Vector3(); box.getCenter(center);
+      const scaleTarget = 1.0; // make models around ~1 unit
+      const maxDim = Math.max(size.x,size.y,size.z);
+      const s = maxDim>0 ? scaleTarget / maxDim : 1;
+      root.scale.setScalar(s);
+      root.position.sub(center.multiplyScalar(s));
+
+      // recompute floorY based on model
+      const box2 = new THREE.Box3().setFromObject(root);
+      floorY = Math.min(box2.min.y - 0.05, floorYDefault);
+      grid.position.y = floorY;
+
+      // find meshes and convert to soft bodies (we'll attach to meshes that have geometry)
+      root.traverse((obj)=>{
+        if(obj.isMesh && obj.geometry && obj.geometry.attributes && obj.geometry.attributes.position){
+          // create soft body wrapper
+          const sb = buildSoftBody(obj);
+          // store mapping from original mesh to soft body wrapper
+          softMeshes.set(obj, sb);
+          softList.push(sb);
+          // replace object's geometry with a clone (so we can modify positions)
+          obj.geometry = sb.geometry;
+          obj.material = obj.material ? obj.material.clone() : new THREE.MeshStandardMaterial({color:0x9fd6ff});
+          obj.castShadow = obj.receiveShadow = true;
+        }
+      });
+
+    }catch(err){ console.error('Error cargando GLB',err); alert('Error cargando GLB: '+err.message); }
+  }
+
+  // sample: load a small default model (Duck) so user sees something
+  loadGLB('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb');
+
+  // simulation loop (fixed-step + PBD-ish)
+  let last = performance.now();
+  function step(){
+    const now = performance.now();
+    let dt = (now - last)/1000; if(dt>0.04) dt=0.04; last = now;
+    // simple Euler integration + edge constraints
+    for(const sb of softList){
+      sb.mass = params.mass;
+      const gravity = params.gravity;
+      const damping = params.damping;
+      const stiffness = params.stiffness;
+      const iters = params.iters;
+
+      // apply forces -> velocity
+      for(let i=0;i<sb.vertexCount;i++){
+        sb.vel[i*3+1] += gravity * dt; // only Y gravity for simplicity
+        // damping
+        sb.vel[i*3] *= (1-damping);
+        sb.vel[i*3+1] *= (1-damping);
+        sb.vel[i*3+2] *= (1-damping);
+        // spring to rest (shape preservation)
+        const rx = sb.rest[i*3], ry = sb.rest[i*3+1], rz = sb.rest[i*3+2];
+        const px = sb.pos[i*3], py = sb.pos[i*3+1], pz = sb.pos[i*3+2];
+        sb.vel[i*3] += (rx - px) * stiffness * dt;
+        sb.vel[i*3+1] += (ry - py) * stiffness * dt;
+        sb.vel[i*3+2] += (rz - pz) * stiffness * dt;
+        // integrate
+        sb.pos[i*3] += sb.vel[i*3] * dt;
+        sb.pos[i*3+1] += sb.vel[i*3+1] * dt;
+        sb.pos[i*3+2] += sb.vel[i*3+2] * dt;
+      }
+
+      // grab constraint (pull vertices toward grabbing target)
+      if(grabbing && grabbing.soft === sb){
+        const target = grabbing.targetLocal;
+        const gStrength = params.grabStrength;
+        for(const it of grabbing.indices){
+          const i = it.i, w = it.weight;
+          const px = sb.pos[i*3], py = sb.pos[i*3+1], pz = sb.pos[i*3+2];
+          sb.pos[i*3] = px + (target.x - px) * (gStrength * w);
+          sb.pos[i*3+1] = py + (target.y - py) * (gStrength * w);
+          sb.pos[i*3+2] = pz + (target.z - pz) * (gStrength * w);
+          // also set velocity to match to avoid popping
+          sb.vel[i*3] = (sb.pos[i*3]-sb.prev[i*3]) / dt;
+          sb.vel[i*3+1] = (sb.pos[i*3+1]-sb.prev[i*3+1]) / dt;
+          sb.vel[i*3+2] = (sb.pos[i*3+2]-sb.prev[i*3+2]) / dt;
+        }
+      }
+
+      // edge-length constraints iterations (PBD style)
+      for(let k=0;k<iters;k++){
+        for(const e of sb.edges){
+          const ai = e.a, bi = e.b;
+          const ax = sb.pos[ai*3], ay = sb.pos[ai*3+1], az = sb.pos[ai*3+2];
+          const bx = sb.pos[bi*3], by = sb.pos[bi*3+1], bz = sb.pos[bi*3+2];
+          let dx = bx - ax, dy = by - ay, dz = bz - az;
+          let len = Math.hypot(dx,dy,dz);
+          if(len===0) continue;
+          const diff = (len - e.restLen) / len;
+          const correction = 0.5 * diff;
+          const corrx = dx * correction, corry = dy * correction, corrz = dz * correction;
+          // apply
+          sb.pos[ai*3] += corrx; sb.pos[ai*3+1] += corry; sb.pos[ai*3+2] += corrz;
+          sb.pos[bi*3] -= corrx; sb.pos[bi*3+1] -= corry; sb.pos[bi*3+2] -= corrz;
+        }
+      }
+
+      // collision with floor (plane at floorY relative to root)
+      for(let i=0;i<sb.vertexCount;i++){
+        const worldPos = sb.mesh.localToWorld(new THREE.Vector3(sb.pos[i*3], sb.pos[i*3+1], sb.pos[i*3+2]));
+        if(worldPos.y < floorY){
+          // map back to local
+          const local = sb.mesh.worldToLocal(worldPos);
+          sb.pos[i*3] = local.x; sb.pos[i*3+1] = local.y; sb.pos[i*3+2] = local.z;
+          // simple bounce
+          sb.vel[i*3+1] *= -params.bounce;
+          sb.vel[i*3] *= params.friction;
+          sb.vel[i*3+2] *= params.friction;
+        }
+      }
+
+      // write positions to geometry
+      const arr = sb.geometry.attributes.position.array;
+      for(let i=0;i<sb.vertexCount;i++){
+        arr[i*3] = sb.pos[i*3]; arr[i*3+1] = sb.pos[i*3+1]; arr[i*3+2] = sb.pos[i*3+2];
+      }
+      sb.geometry.attributes.position.needsUpdate = true;
+      sb.geometry.computeVertexNormals();
+
+      // update prev
+      for(let i=0;i<sb.vertexCount;i++){
+        sb.prev[i*3] = sb.pos[i*3]; sb.prev[i*3+1] = sb.pos[i*3+1]; sb.prev[i*3+2] = sb.pos[i*3+2];
+      }
+    }
+  }
+
+  function render(){
+    step();
+    controls.update();
+    renderer.render(scene, camera);
+    requestAnimationFrame(render);
+  }
+  render();
+
+  // resize
+  window.addEventListener('resize', ()=>{ renderer.setSize(window.innerWidth-360, window.innerHeight-24); camera.aspect = (window.innerWidth-360) / (window.innerHeight-24); camera.updateProjectionMatrix(); });
+
+  </script>
+</body>
+</html>
