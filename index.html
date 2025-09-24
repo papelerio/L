@@ -1,502 +1,1022 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Visor GLB — Soft / Flácido (Demo)</title>
-  <style>
-    :root{--bg:#0b1020;--panel:rgba(255,255,255,0.06);--accent:#7ad0ff}
-    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071021 0%, #08111a 100%);font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial}
-    #app{height:100%;display:grid;grid-template-columns:1fr 340px;gap:12px;padding:12px}
-    canvas{width:100%;height:100%;display:block;border-radius:8px;box-shadow:0 6px 30px rgba(0,0,0,0.6)}
-    .panel{background:var(--panel);padding:12px;border-radius:10px;color:#e6eef6;backdrop-filter:blur(6px);overflow:auto}
-    .controls h2{margin:0 0 8px 0;font-size:14px}
-    .row{display:flex;gap:8px;align-items:center;margin:8px 0}
-    label{font-size:12px;min-width:110px}
-    input[type=range]{width:100%}
-    button{background:transparent;border:1px solid rgba(255,255,255,0.08);padding:8px;border-radius:8px;color:#e6eef6;cursor:pointer}
-    .accent{border-color:var(--accent);box-shadow:0 4px 12px rgba(122,208,255,0.06)}
-    .small{font-size:12px;color:#bcd6e8}
-    .file{display:block;padding:8px;background:rgba(255,255,255,0.02);border-radius:6px}
-    .hint{font-size:12px;color:#9fb9d0;margin-top:6px}
-    footer{color:#7f9fb4;font-size:12px;margin-top:10px}
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Creador de Spritesheets</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            color: #e94560;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #b8b8d1;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .modes {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            gap: 20px;
+        }
+        
+        .mode-btn {
+            padding: 15px 30px;
+            background: #0f3460;
+            border: none;
+            border-radius: 50px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+        
+        .mode-btn.active {
+            background: #e94560;
+            box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
+        }
+        
+        .mode-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .mode-content {
+            display: none;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+        
+        .mode-content.active {
+            display: block;
+        }
+        
+        .upload-area {
+            border: 3px dashed #4a69bd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        
+        .upload-area:hover {
+            background: rgba(74, 105, 189, 0.1);
+        }
+        
+        .upload-area.drag-over {
+            background: rgba(74, 105, 189, 0.2);
+            border-color: #e94560;
+        }
+        
+        .upload-icon {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            color: #4a69bd;
+        }
+        
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .preview-item {
+            position: relative;
+            width: 100px;
+            height: 100px;
+            border: 2px solid #4a69bd;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .remove-btn {
+            position: absolute;
+            top: 5px;
+            right: 5px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 25px;
+            height: 25px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .control-group {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        
+        .control-group h3 {
+            margin-bottom: 15px;
+            color: #e94560;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+        
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 12px 25px;
+            background: #e94560;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        
+        button:hover {
+            background: #ff577f;
+            transform: translateY(-2px);
+        }
+        
+        button.secondary {
+            background: #0f3460;
+        }
+        
+        button.secondary:hover {
+            background: #1b512d;
+        }
+        
+        .preview-canvas {
+            max-width: 100%;
+            border: 2px solid #4a69bd;
+            border-radius: 10px;
+            margin-bottom: 30px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .json-output {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-bottom: 30px;
+        }
+        
+        .animation-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .animation-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .animation-item h4 {
+            color: #e94560;
+            margin-bottom: 10px;
+        }
+        
+        .frame-preview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .frame {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #4a69bd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .frame img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* Nuevos estilos para el visualizador de animación */
+        .animation-viewer {
+            margin: 30px 0;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+        
+        .animation-viewer h3 {
+            color: #e94560;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        
+        .animation-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .animation-display {
+            width: 150px;
+            height: 150px;
+            border: 2px solid #4a69bd;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+        }
+        
+        .animation-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .animation-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .animation-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #b8b8d1;
+        }
+        
+        @media (max-width: 768px) {
+            .modes {
+                flex-direction: column;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .animation-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
 </head>
 <body>
-  <div id="app">
-    <div style="position:relative">
-      <canvas id="c"></canvas>
-      <div style="position:absolute;left:12px;top:12px;background:rgba(0,0,0,0.25);padding:8px;border-radius:8px;color:#dff4ff;font-size:13px">
-        <div style="font-weight:700">Visor GLB — Softbody</div>
-        <div class="small">Click / arrastra para agarrar. "Play dead" hace el modelo muy flácido.</div>
-      </div>
+    <div class="container">
+        <header>
+            <h1>Creador de Spritesheets</h1>
+            <p class="subtitle">Herramienta para crear spritesheets a partir de imágenes individuales o dividir spritesheets existentes y generar su configuración JSON</p>
+        </header>
+        
+        <div class="modes">
+            <button class="mode-btn active" data-mode="create">Modo 1: Crear Spritesheet</button>
+            <button class="mode-btn" data-mode="divide">Modo 2: Dividir Spritesheet</button>
+        </div>
+        
+        <!-- Modo 1: Crear Spritesheet -->
+        <div id="create-mode" class="mode-content active">
+            <div class="upload-area" id="create-upload">
+                <div class="upload-icon">📁</div>
+                <h2>Arrastra y suelta tus imágenes aquí</h2>
+                <p>o haz clic para seleccionar archivos</p>
+                <input type="file" id="create-input" multiple accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="preview-container" id="create-preview"></div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <h3>Configuración del Spritesheet</h3>
+                    <label for="rows">Filas:</label>
+                    <input type="number" id="rows" min="1" value="1">
+                    
+                    <label for="columns">Columnas:</label>
+                    <input type="number" id="columns" min="1" value="1">
+                    
+                    <label for="spacing">Espaciado (px):</label>
+                    <input type="number" id="spacing" min="0" value="0">
+                </div>
+                
+                <div class="control-group">
+                    <h3>Configuración de Animación</h3>
+                    <label for="anim-name">Nombre de Animación:</label>
+                    <input type="text" id="anim-name" value="animation">
+                    
+                    <label for="frame-width">Ancho del Frame (px):</label>
+                    <input type="number" id="frame-width" min="1" value="64">
+                    
+                    <label for="frame-height">Alto del Frame (px):</label>
+                    <input type="number" id="frame-height" min="1" value="64">
+                    
+                    <label for="anim-speed">Velocidad (segundos):</label>
+                    <input type="number" id="anim-speed" min="0.01" step="0.01" value="0.2">
+                </div>
+            </div>
+            
+            <button id="generate-sprite">Generar Spritesheet</button>
+            <button id="download-sprite" class="secondary" disabled>Descargar Spritesheet (PNG)</button>
+            
+            <canvas id="sprite-canvas" class="preview-canvas"></canvas>
+            
+            <h3>Configuración JSON</h3>
+            <div class="json-output" id="json-output">// El JSON aparecerá aquí después de generar el spritesheet</div>
+            <button id="download-json" class="secondary" disabled>Descargar JSON</button>
+        </div>
+        
+        <!-- Modo 2: Dividir Spritesheet -->
+        <div id="divide-mode" class="mode-content">
+            <div class="upload-area" id="divide-upload">
+                <div class="upload-icon">🌐</div>
+                <h2>Arrastra y suelta un spritesheet o ingresa una URL</h2>
+                <p>o haz clic para seleccionar un archivo</p>
+                <input type="file" id="divide-input" accept="image/*" style="display: none;">
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <h3>O ingresa una URL</h3>
+                    <label for="sprite-url">URL del Spritesheet:</label>
+                    <input type="url" id="sprite-url" placeholder="https://ejemplo.com/spritesheet.png">
+                    <button id="load-url">Cargar desde URL</button>
+                </div>
+                
+                <div class="control-group">
+                    <h3>Configuración de División</h3>
+                    <label for="divide-width">Ancho del Frame (px):</label>
+                    <input type="number" id="divide-width" min="1" value="64">
+                    
+                    <label for="divide-height">Alto del Frame (px):</label>
+                    <input type="number" id="divide-height" min="1" value="64">
+                    
+                    <label for="divide-offset-x">Offset X (px):</label>
+                    <input type="number" id="divide-offset-x" min="0" value="0">
+                    
+                    <label for="divide-offset-y">Offset Y (px):</label>
+                    <input type="number" id="divide-offset-y" min="0" value="0">
+                    
+                    <label for="divide-spacing">Espaciado (px):</label>
+                    <input type="number" id="divide-spacing" min="0" value="0">
+                </div>
+                
+                <div class="control-group">
+                    <h3>Configuración de Animación</h3>
+                    <label for="divide-anim-name">Nombre de Animación:</label>
+                    <input type="text" id="divide-anim-name" value="animation">
+                    
+                    <label for="divide-anim-speed">Velocidad (segundos):</label>
+                    <input type="number" id="divide-anim-speed" min="0.01" step="0.01" value="0.2">
+                    
+                    <label for="divide-anim-loop">Loop:</label>
+                    <select id="divide-anim-loop">
+                        <option value="true">Sí</option>
+                        <option value="false">No</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button id="divide-sprite">Dividir Spritesheet</button>
+            
+            <canvas id="divide-canvas" class="preview-canvas"></canvas>
+            
+            <!-- Visualizador de Animación (Nuevo) -->
+            <div class="animation-viewer" id="animation-viewer" style="display: none;">
+                <h3>Visualizador de Animación</h3>
+                <div class="animation-container">
+                    <div class="animation-display">
+                        <canvas id="animation-canvas" class="animation-canvas"></canvas>
+                    </div>
+                    <div class="animation-controls">
+                        <button id="play-animation">▶️ Reproducir</button>
+                        <button id="pause-animation">⏸️ Pausar</button>
+                        <button id="stop-animation">⏹️ Detener</button>
+                        <div class="animation-info" id="animation-info">Frame: 0/0</div>
+                    </div>
+                </div>
+            </div>
+            
+            <h3>Animaciones</h3>
+            <div class="animation-list" id="animation-list"></div>
+            
+            <h3>Configuración JSON</h3>
+            <div class="json-output" id="divide-json-output">// El JSON aparecerá aquí después de dividir el spritesheet</div>
+            <button id="download-divide-json" class="secondary" disabled>Descargar JSON</button>
+        </div>
+        
+        <footer>
+            <p>Herramienta creada para simplificar el desarrollo de juegos - ¡Exporta directamente a tu proyecto!</p>
+        </footer>
     </div>
 
-    <aside class="panel controls">
-      <h2>Cargar modelo .glb</h2>
-      <div class="row">
-        <input id="file" class="file" type="file" accept=".glb,.gltf" />
-      </div>
-      <div class="hint">Arrastra un archivo .glb aquí o usa el selector. (También puedes cargar modelos ligeros para mejor rendimiento).</div>
-
-      <h2 style="margin-top:12px">Controles físicos</h2>
-      <div class="row"><label>Gravedad</label><input id="gravity" type="range" min="-30" max="30" step="0.1" value="-9.8" /></div>
-      <div class="row"><label>Rigidez (shape)</label><input id="stiffness" type="range" min="0" max="1" step="0.01" value="0.15" /></div>
-      <div class="row"><label>Damping</label><input id="damping" type="range" min="0" max="0.5" step="0.005" value="0.02" /></div>
-      <div class="row"><label>Masa (global)</label><input id="mass" type="range" min="0.01" max="5" step="0.01" value="1" /></div>
-      <div class="row"><label>Iter. constraints</label><input id="iters" type="range" min="1" max="8" step="1" value="3" /></div>
-
-      <h2 style="margin-top:12px">Agarrar y manipular</h2>
-      <div class="row"><label>Radio grab (m)</label><input id="grabRadius" type="range" min="0.01" max="1" step="0.01" value="0.12" /></div>
-      <div class="row"><label>Fuerza grab</label><input id="grabStrength" type="range" min="0.01" max="1" step="0.01" value="0.9" /></div>
-      <div class="row"><button id="playDead">Hacerse el muerto</button><button id="reset">Restablecer</button></div>
-
-      <h2 style="margin-top:12px">Opciones</h2>
-      <div class="row"><label>Mostrar malla</label><input id="showMesh" type="checkbox" checked /></div>
-      <div class="row"><label>Mostrar normales</label><input id="showNormals" type="checkbox" /></div>
-
-      <footer>
-        Sugerencias: usar modelos de baja a media resolución (1000–30000 vértices) para buena fluidez. Para pelo/parts flácidas, separa esas piezas en su propio mesh en el .glb.
-      </footer>
-    </aside>
-  </div>
-
-  <script type="module">
-  import * as THREE from 'https://unpkg.com/three@0.152.2/build/three.module.js';
-  import { OrbitControls } from 'https://unpkg.com/three@0.152.2/examples/jsm/controls/OrbitControls.js';
-  import { GLTFLoader } from 'https://unpkg.com/three@0.152.2/examples/jsm/loaders/GLTFLoader.js';
-
-  const canvas = document.getElementById('c');
-  const renderer = new THREE.WebGLRenderer({canvas, antialias:true});
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-  renderer.setSize(window.innerWidth - 360, window.innerHeight - 24);
-  renderer.outputEncoding = THREE.sRGBEncoding;
-
-  const scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x071021);
-
-  const camera = new THREE.PerspectiveCamera(50, (window.innerWidth-360) / (window.innerHeight-24), 0.05, 2000);
-  camera.position.set(0, 0.8, 2.2);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0,0.4,0);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.1;
-
-  // Lights
-  const hemi = new THREE.HemisphereLight(0x99c8ff, 0x202033, 0.8);
-  scene.add(hemi);
-  const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-  dir.position.set(3,6,2);
-  scene.add(dir);
-
-  // ground ("infinito" visual)
-  const grid = new THREE.GridHelper(200,200,0x264f5f,0x12313b);
-  grid.position.y = 0;
-  grid.material.opacity = 0.6;
-  grid.material.transparent = true;
-  scene.add(grid);
-
-  const floorYDefault = -0.8; // will be adjusted on load
-  let floorY = floorYDefault;
-
-  // helper
-  const raycaster = new THREE.Raycaster();
-  const pointer = new THREE.Vector2();
-
-  // soft-body management
-  const softMeshes = new Map(); // mesh -> SoftBody
-
-  class SoftBody {
-    constructor(mesh){
-      this.mesh = mesh;
-      this.geometry = mesh.geometry.clone();
-      // ensure non-indexed for simple mapping
-      if(this.geometry.index) this.geometry = this.geometry.toNonIndexed();
-      this.positionAttr = this.geometry.attributes.position;
-      this.vertexCount = this.positionAttr.count;
-
-      // copy rest positions
-      this.rest = new Float32Array(this.vertexCount*3);
-      this.pos = new Float32Array(this.vertexCount*3);
-      this.prev = new Float32Array(this.vertexCount*3);
-      this.vel = new Float32Array(this.vertexCount*3);
-      this.mass = 1;
-
-      for(let i=0;i<this.vertexCount;i++){
-        const x = this.positionAttr.getX(i);
-        const y = this.positionAttr.getY(i);
-        const z = this.positionAttr.getZ(i);
-        this.rest[i*3] = x; this.rest[i*3+1] = y; this.rest[i*3+2] = z;
-        this.pos[i*3] = x; this.pos[i*3+1] = y; this.pos[i*3+2] = z;
-        this.prev[i*3] = x; this.prev[i*3+1] = y; this.prev[i*3+2] = z;
-        this.vel[i*3] = 0; this.vel[i*3+1] = 0; this.vel[i*3+2] = 0;
-      }
-
-      // Extract edges from triangles
-      this.edges = new Map(); // key -> {a,b,restLen}
-      for(let i=0;i<this.vertexCount;i+=3){
-        const a=i, b=i+1, c=i+2;
-        addEdge(a,b,this);
-        addEdge(b,c,this);
-        addEdge(c,a,this);
-      }
-      function addEdge(a,b(self)){}
-    }
-  }
-
-  // Because the JS engine doesn't like nested function with dynamic name, we'll define addEdge here:
-  function buildSoftBody(mesh){
-    const sb = {
-      mesh,
-      geometry: mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone(),
-      positionAttr: null,
-      vertexCount: 0,
-      rest:null,pos:null,prev:null,vel:null,mass:1,
-      edges:[],edgeMap:new Map(),
-      constraintIterations:3
-    };
-    if(sb.geometry.index) sb.geometry = sb.geometry.toNonIndexed();
-    sb.positionAttr = sb.geometry.attributes.position;
-    sb.vertexCount = sb.positionAttr.count;
-    sb.rest = new Float32Array(sb.vertexCount*3);
-    sb.pos = new Float32Array(sb.vertexCount*3);
-    sb.prev = new Float32Array(sb.vertexCount*3);
-    sb.vel = new Float32Array(sb.vertexCount*3);
-    for(let i=0;i<sb.vertexCount;i++){
-      const x = sb.positionAttr.getX(i);
-      const y = sb.positionAttr.getY(i);
-      const z = sb.positionAttr.getZ(i);
-      sb.rest[i*3]=x; sb.rest[i*3+1]=y; sb.rest[i*3+2]=z;
-      sb.pos[i*3]=x; sb.pos[i*3+1]=y; sb.pos[i*3+2]=z;
-      sb.prev[i*3]=x; sb.prev[i*3+1]=y; sb.prev[i*3+2]=z;
-    }
-    // edges
-    const edgeMap = new Map();
-    for(let i=0;i<sb.vertexCount;i+=3){
-      const a=i, b=i+1, c=i+2;
-      addEdgeLocal(a,b,sb,edgeMap);
-      addEdgeLocal(b,c,sb,edgeMap);
-      addEdgeLocal(c,a,sb,edgeMap);
-    }
-    sb.edges = Array.from(edgeMap.values());
-    sb.edgeMap = edgeMap;
-    return sb;
-  }
-  function addEdgeLocal(a,b,sb,edgeMap){
-    const key = a<b? `${a}_${b}`:`${b}_${a}`;
-    if(edgeMap.has(key)) return;
-    const ax = sb.rest[a*3], ay = sb.rest[a*3+1], az = sb.rest[a*3+2];
-    const bx = sb.rest[b*3], by = sb.rest[b*3+1], bz = sb.rest[b*3+2];
-    const dx = bx-ax, dy = by-ay, dz = bz-az;
-    const len = Math.hypot(dx,dy,dz);
-    const e = {a,b,restLen:len};
-    edgeMap.set(key,e);
-  }
-
-  // active soft bodies
-  const softList = [];
-
-  // simulation params (driven by UI)
-  const params = {
-    gravity:-9.8,
-    stiffness:0.15,
-    damping:0.02,
-    mass:1,
-    iters:3,
-    bounce:0.12,
-    friction:0.9,
-    grabRadius:0.12,
-    grabStrength:0.9
-  };
-
-  // pointer grabbing state
-  let grabbing = null; // {soft, indices: [{i,weight}], targetLocal:Vector3}
-
-  function onPointerDown(e){
-    const rect = renderer.domElement.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    raycaster.setFromCamera(pointer, camera);
-    const intersects = raycaster.intersectObjects(Array.from(softMeshes.keys()), true);
-    if(intersects.length===0) return;
-    const it = intersects[0];
-    // find soft body corresponding to it.object (ascending)
-    let obj = it.object;
-    while(obj && !softMeshes.has(obj)) obj = obj.parent;
-    // try mapping
-    let soft = null;
-    if(!obj){
-      // find by parent chain in map
-      for(const [mesh,sb] of softMeshes.entries()){
-        if(it.object.isMesh && it.object === mesh) { soft = sb; break; }
-        if(it.object.isObject3D && mesh.isObject3D && it.object === mesh) { soft = sb; break; }
-      }
-    } else soft = softMeshes.get(obj);
-
-    if(!soft){
-      // fallback: search nearest soft by distance
-      let best = null, bestDist=Infinity;
-      for(const sb of softList){
-        const dist = it.point.distanceTo(sb.mesh.getWorldPosition(new THREE.Vector3()));
-        if(dist<bestDist){bestDist=dist;best=sb}
-      }
-      soft = best;
-    }
-    if(!soft) return;
-
-    // compute target world on plane through intersection
-    const plane = new THREE.Plane();
-    const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir).negate();
-    plane.setFromNormalAndCoplanarPoint(camDir, it.point);
-    const target = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, target);
-
-    // convert target world to mesh local
-    const targetLocal = soft.mesh.worldToLocal(target.clone());
-
-    // find nearby vertices
-    const radius = params.grabRadius;
-    const candidates = [];
-    for(let i=0;i<soft.vertexCount;i++){
-      const vx = soft.pos[i*3], vy = soft.pos[i*3+1], vz = soft.pos[i*3+2];
-      const dx = vx - targetLocal.x, dy = vy - targetLocal.y, dz = vz - targetLocal.z;
-      const d2 = dx*dx+dy*dy+dz*dz;
-      if(d2 <= radius*radius){
-        const w = 1 - Math.sqrt(d2)/radius;
-        candidates.push({i,weight:w});
-      }
-    }
-    if(candidates.length===0) return;
-    grabbing = {soft, indices:candidates, targetLocal};
-    // prevent orbit while grabbing
-    controls.enabled = false;
-  }
-
-  function onPointerMove(e){
-    const rect = renderer.domElement.getBoundingClientRect();
-    pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-    pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-    if(!grabbing) return;
-    // update target world
-    raycaster.setFromCamera(pointer, camera);
-    const plane = new THREE.Plane();
-    const camDir = new THREE.Vector3(); camera.getWorldDirection(camDir).negate();
-    // use point on mesh world as coplanar
-    const worldPoint = grabbing.soft.mesh.localToWorld(new THREE.Vector3(grabbing.targetLocal.x, grabbing.targetLocal.y, grabbing.targetLocal.z));
-    plane.setFromNormalAndCoplanarPoint(camDir, worldPoint);
-    const target = new THREE.Vector3();
-    raycaster.ray.intersectPlane(plane, target);
-    grabbing.targetLocal = grabbing.soft.mesh.worldToLocal(target.clone());
-  }
-
-  function onPointerUp(e){
-    grabbing = null;
-    controls.enabled = true;
-  }
-
-  renderer.domElement.addEventListener('pointerdown', onPointerDown);
-  window.addEventListener('pointermove', onPointerMove);
-  window.addEventListener('pointerup', onPointerUp);
-
-  // UI bindings
-  const fileInput = document.getElementById('file');
-  fileInput.addEventListener('change', async (ev)=>{
-    if(!ev.target.files || ev.target.files.length===0) return;
-    const f = ev.target.files[0];
-    const url = URL.createObjectURL(f);
-    await loadGLB(url);
-    URL.revokeObjectURL(url);
-  });
-
-  document.getElementById('gravity').addEventListener('input', (e)=>{ params.gravity = parseFloat(e.target.value); });
-  document.getElementById('stiffness').addEventListener('input', (e)=>{ params.stiffness = parseFloat(e.target.value); });
-  document.getElementById('damping').addEventListener('input', (e)=>{ params.damping = parseFloat(e.target.value); });
-  document.getElementById('mass').addEventListener('input', (e)=>{ params.mass = parseFloat(e.target.value); });
-  document.getElementById('iters').addEventListener('input', (e)=>{ params.iters = parseInt(e.target.value); });
-  document.getElementById('grabRadius').addEventListener('input', (e)=>{ params.grabRadius = parseFloat(e.target.value); });
-  document.getElementById('grabStrength').addEventListener('input', (e)=>{ params.grabStrength = parseFloat(e.target.value); });
-  document.getElementById('playDead').addEventListener('click', ()=>{
-    // toggle: make stiffness very low for "dead" effect, then slowly restore
-    params.stiffness = 0.01;
-    document.getElementById('stiffness').value = params.stiffness;
-  });
-  document.getElementById('reset').addEventListener('click', ()=>{
-    // reset scene
-    for(const sb of softList){
-      for(let i=0;i<sb.vertexCount;i++){
-        sb.pos[i*3] = sb.rest[i*3]; sb.pos[i*3+1] = sb.rest[i*3+1]; sb.pos[i*3+2] = sb.rest[i*3+2];
-        sb.vel[i*3]=sb.vel[i*3+1]=sb.vel[i*3+2]=0;
-      }
-    }
-  });
-
-  document.getElementById('showMesh').addEventListener('change',(e)=>{ for(const sb of softList) sb.mesh.visible = e.target.checked; });
-  document.getElementById('showNormals').addEventListener('change',(e)=>{ for(const sb of softList) {
-    if(e.target.checked){
-      if(!sb._normHelper){
-        sb._normHelper = new THREE.VertexNormalsHelper(sb.mesh, 0.04, 0xffffaa);
-        scene.add(sb._normHelper);
-      }
-    } else { if(sb._normHelper) { scene.remove(sb._normHelper); sb._normHelper = null; } }
-  }});
-
-  // load GLB
-  const loader = new GLTFLoader();
-  async function loadGLB(url){
-    try{
-      const gltf = await loader.loadAsync(url);
-      // clear existing soft bodies and objects
-      for(const sb of softList){ scene.remove(sb.mesh); }
-      softList.length = 0; softMeshes.clear();
-
-      // add gltf scene
-      const root = gltf.scene || gltf.scenes[0];
-      scene.add(root);
-
-      // compute bounding box to scale and position nicely
-      const box = new THREE.Box3().setFromObject(root);
-      const size = new THREE.Vector3(); box.getSize(size);
-      const center = new THREE.Vector3(); box.getCenter(center);
-      const scaleTarget = 1.0; // make models around ~1 unit
-      const maxDim = Math.max(size.x,size.y,size.z);
-      const s = maxDim>0 ? scaleTarget / maxDim : 1;
-      root.scale.setScalar(s);
-      root.position.sub(center.multiplyScalar(s));
-
-      // recompute floorY based on model
-      const box2 = new THREE.Box3().setFromObject(root);
-      floorY = Math.min(box2.min.y - 0.05, floorYDefault);
-      grid.position.y = floorY;
-
-      // find meshes and convert to soft bodies (we'll attach to meshes that have geometry)
-      root.traverse((obj)=>{
-        if(obj.isMesh && obj.geometry && obj.geometry.attributes && obj.geometry.attributes.position){
-          // create soft body wrapper
-          const sb = buildSoftBody(obj);
-          // store mapping from original mesh to soft body wrapper
-          softMeshes.set(obj, sb);
-          softList.push(sb);
-          // replace object's geometry with a clone (so we can modify positions)
-          obj.geometry = sb.geometry;
-          obj.material = obj.material ? obj.material.clone() : new THREE.MeshStandardMaterial({color:0x9fd6ff});
-          obj.castShadow = obj.receiveShadow = true;
+    <script>
+        // Variables globales
+        let currentMode = 'create';
+        let uploadedImages = [];
+        let currentSpriteSheet = null;
+        let dividedFrames = [];
+        let generatedSpriteSheet = null;
+        
+        // Variables para el visualizador de animación
+        let animationPlaying = false;
+        let currentFrame = 0;
+        let animationInterval = null;
+        let animationImages = [];
+        
+        // Cambiar entre modos
+        document.querySelectorAll('.mode-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const mode = btn.dataset.mode;
+                document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.mode-content').forEach(c => c.classList.remove('active'));
+                
+                btn.classList.add('active');
+                document.getElementById(`${mode}-mode`).classList.add('active');
+                currentMode = mode;
+                
+                // Detener la animación al cambiar de modo
+                stopAnimation();
+            });
+        });
+        
+        // Modo 1: Crear Spritesheet
+        const createUpload = document.getElementById('create-upload');
+        const createInput = document.getElementById('create-input');
+        const createPreview = document.getElementById('create-preview');
+        const generateBtn = document.getElementById('generate-sprite');
+        const downloadSpriteBtn = document.getElementById('download-sprite');
+        const spriteCanvas = document.getElementById('sprite-canvas');
+        const jsonOutput = document.getElementById('json-output');
+        const downloadJsonBtn = document.getElementById('download-json');
+        
+        // Eventos de arrastrar y soltar para el modo crear
+        setupDragAndDrop(createUpload, handleCreateFiles);
+        
+        createUpload.addEventListener('click', () => {
+            createInput.click();
+        });
+        
+        createInput.addEventListener('change', (e) => {
+            handleCreateFiles(e.target.files);
+        });
+        
+        function handleCreateFiles(files) {
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                if (!file.type.match('image.*')) continue;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    uploadedImages.push({
+                        src: e.target.result,
+                        img: null
+                    });
+                    updateCreatePreview();
+                };
+                reader.readAsDataURL(file);
+            }
         }
-      });
-
-    }catch(err){ console.error('Error cargando GLB',err); alert('Error cargando GLB: '+err.message); }
-  }
-
-  // sample: load a small default model (Duck) so user sees something
-  loadGLB('https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Models/master/2.0/Duck/glTF-Binary/Duck.glb');
-
-  // simulation loop (fixed-step + PBD-ish)
-  let last = performance.now();
-  function step(){
-    const now = performance.now();
-    let dt = (now - last)/1000; if(dt>0.04) dt=0.04; last = now;
-    // simple Euler integration + edge constraints
-    for(const sb of softList){
-      sb.mass = params.mass;
-      const gravity = params.gravity;
-      const damping = params.damping;
-      const stiffness = params.stiffness;
-      const iters = params.iters;
-
-      // apply forces -> velocity
-      for(let i=0;i<sb.vertexCount;i++){
-        sb.vel[i*3+1] += gravity * dt; // only Y gravity for simplicity
-        // damping
-        sb.vel[i*3] *= (1-damping);
-        sb.vel[i*3+1] *= (1-damping);
-        sb.vel[i*3+2] *= (1-damping);
-        // spring to rest (shape preservation)
-        const rx = sb.rest[i*3], ry = sb.rest[i*3+1], rz = sb.rest[i*3+2];
-        const px = sb.pos[i*3], py = sb.pos[i*3+1], pz = sb.pos[i*3+2];
-        sb.vel[i*3] += (rx - px) * stiffness * dt;
-        sb.vel[i*3+1] += (ry - py) * stiffness * dt;
-        sb.vel[i*3+2] += (rz - pz) * stiffness * dt;
-        // integrate
-        sb.pos[i*3] += sb.vel[i*3] * dt;
-        sb.pos[i*3+1] += sb.vel[i*3+1] * dt;
-        sb.pos[i*3+2] += sb.vel[i*3+2] * dt;
-      }
-
-      // grab constraint (pull vertices toward grabbing target)
-      if(grabbing && grabbing.soft === sb){
-        const target = grabbing.targetLocal;
-        const gStrength = params.grabStrength;
-        for(const it of grabbing.indices){
-          const i = it.i, w = it.weight;
-          const px = sb.pos[i*3], py = sb.pos[i*3+1], pz = sb.pos[i*3+2];
-          sb.pos[i*3] = px + (target.x - px) * (gStrength * w);
-          sb.pos[i*3+1] = py + (target.y - py) * (gStrength * w);
-          sb.pos[i*3+2] = pz + (target.z - pz) * (gStrength * w);
-          // also set velocity to match to avoid popping
-          sb.vel[i*3] = (sb.pos[i*3]-sb.prev[i*3]) / dt;
-          sb.vel[i*3+1] = (sb.pos[i*3+1]-sb.prev[i*3+1]) / dt;
-          sb.vel[i*3+2] = (sb.pos[i*3+2]-sb.prev[i*3+2]) / dt;
+        
+        function updateCreatePreview() {
+            createPreview.innerHTML = '';
+            uploadedImages.forEach((imgData, index) => {
+                const div = document.createElement('div');
+                div.className = 'preview-item';
+                div.innerHTML = `
+                    <img src="${imgData.src}" alt="Imagen ${index + 1}">
+                    <button class="remove-btn" data-index="${index}">×</button>
+                `;
+                createPreview.appendChild(div);
+            });
+            
+            // Evento para eliminar imágenes
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = parseInt(btn.dataset.index);
+                    uploadedImages.splice(index, 1);
+                    updateCreatePreview();
+                });
+            });
         }
-      }
-
-      // edge-length constraints iterations (PBD style)
-      for(let k=0;k<iters;k++){
-        for(const e of sb.edges){
-          const ai = e.a, bi = e.b;
-          const ax = sb.pos[ai*3], ay = sb.pos[ai*3+1], az = sb.pos[ai*3+2];
-          const bx = sb.pos[bi*3], by = sb.pos[bi*3+1], bz = sb.pos[bi*3+2];
-          let dx = bx - ax, dy = by - ay, dz = bz - az;
-          let len = Math.hypot(dx,dy,dz);
-          if(len===0) continue;
-          const diff = (len - e.restLen) / len;
-          const correction = 0.5 * diff;
-          const corrx = dx * correction, corry = dy * correction, corrz = dz * correction;
-          // apply
-          sb.pos[ai*3] += corrx; sb.pos[ai*3+1] += corry; sb.pos[ai*3+2] += corrz;
-          sb.pos[bi*3] -= corrx; sb.pos[bi*3+1] -= corry; sb.pos[bi*3+2] -= corrz;
+        
+        // Generar spritesheet
+        generateBtn.addEventListener('click', generateSpriteSheet);
+        
+        function generateSpriteSheet() {
+            if (uploadedImages.length === 0) {
+                alert('Por favor, sube al menos una imagen.');
+                return;
+            }
+            
+            const rows = parseInt(document.getElementById('rows').value) || 1;
+            const columns = parseInt(document.getElementById('columns').value) || 1;
+            const spacing = parseInt(document.getElementById('spacing').value) || 0;
+            const frameWidth = parseInt(document.getElementById('frame-width').value) || 64;
+            const frameHeight = parseInt(document.getElementById('frame-height').value) || 64;
+            
+            // Calcular dimensiones del canvas
+            const canvasWidth = columns * frameWidth + (columns - 1) * spacing;
+            const canvasHeight = rows * frameHeight + (rows - 1) * spacing;
+            
+            // Configurar canvas
+            const ctx = spriteCanvas.getContext('2d');
+            spriteCanvas.width = canvasWidth;
+            spriteCanvas.height = canvasHeight;
+            
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Cargar todas las imágenes y luego dibujarlas
+            let loadedImages = 0;
+            
+            uploadedImages.forEach((imgData, index) => {
+                if (imgData.img) {
+                    loadedImages++;
+                    if (loadedImages === uploadedImages.length) {
+                        drawImagesOnCanvas(ctx, rows, columns, spacing, frameWidth, frameHeight);
+                    }
+                } else {
+                    const img = new Image();
+                    img.onload = function() {
+                        imgData.img = img;
+                        loadedImages++;
+                        if (loadedImages === uploadedImages.length) {
+                            drawImagesOnCanvas(ctx, rows, columns, spacing, frameWidth, frameHeight);
+                        }
+                    };
+                    img.onerror = function() {
+                        loadedImages++;
+                        if (loadedImages === uploadedImages.length) {
+                            drawImagesOnCanvas(ctx, rows, columns, spacing, frameWidth, frameHeight);
+                        }
+                    };
+                    img.src = imgData.src;
+                }
+            });
+            
+            // Si no hay imágenes, dibujar igualmente
+            if (uploadedImages.length === 0) {
+                drawImagesOnCanvas(ctx, rows, columns, spacing, frameWidth, frameHeight);
+            }
         }
-      }
-
-      // collision with floor (plane at floorY relative to root)
-      for(let i=0;i<sb.vertexCount;i++){
-        const worldPos = sb.mesh.localToWorld(new THREE.Vector3(sb.pos[i*3], sb.pos[i*3+1], sb.pos[i*3+2]));
-        if(worldPos.y < floorY){
-          // map back to local
-          const local = sb.mesh.worldToLocal(worldPos);
-          sb.pos[i*3] = local.x; sb.pos[i*3+1] = local.y; sb.pos[i*3+2] = local.z;
-          // simple bounce
-          sb.vel[i*3+1] *= -params.bounce;
-          sb.vel[i*3] *= params.friction;
-          sb.vel[i*3+2] *= params.friction;
+        
+        function drawImagesOnCanvas(ctx, rows, columns, spacing, frameWidth, frameHeight) {
+            const canvasWidth = columns * frameWidth + (columns - 1) * spacing;
+            const canvasHeight = rows * frameHeight + (rows - 1) * spacing;
+            
+            // Limpiar canvas
+            ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+            ctx.fillStyle = 'rgba(0, 0, 0, 0)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+            
+            // Dibujar imágenes en el canvas
+            let currentImage = 0;
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < columns; x++) {
+                    if (currentImage < uploadedImages.length) {
+                        const imgData = uploadedImages[currentImage];
+                        if (imgData.img) {
+                            ctx.drawImage(
+                                imgData.img, 
+                                x * (frameWidth + spacing), 
+                                y * (frameHeight + spacing), 
+                                frameWidth, 
+                                frameHeight
+                            );
+                        }
+                        currentImage++;
+                    }
+                }
+            }
+            
+            // Guardar el spritesheet generado
+            generatedSpriteSheet = spriteCanvas.toDataURL('image/png');
+            
+            // Generar JSON
+            generateJsonConfig();
+            
+            // Habilitar botón de descarga
+            downloadSpriteBtn.disabled = false;
         }
-      }
-
-      // write positions to geometry
-      const arr = sb.geometry.attributes.position.array;
-      for(let i=0;i<sb.vertexCount;i++){
-        arr[i*3] = sb.pos[i*3]; arr[i*3+1] = sb.pos[i*3+1]; arr[i*3+2] = sb.pos[i*3+2];
-      }
-      sb.geometry.attributes.position.needsUpdate = true;
-      sb.geometry.computeVertexNormals();
-
-      // update prev
-      for(let i=0;i<sb.vertexCount;i++){
-        sb.prev[i*3] = sb.pos[i*3]; sb.prev[i*3+1] = sb.pos[i*3+1]; sb.prev[i*3+2] = sb.pos[i*3+2];
-      }
-    }
-  }
-
-  function render(){
-    step();
-    controls.update();
-    renderer.render(scene, camera);
-    requestAnimationFrame(render);
-  }
-  render();
-
-  // resize
-  window.addEventListener('resize', ()=>{ renderer.setSize(window.innerWidth-360, window.innerHeight-24); camera.aspect = (window.innerWidth-360) / (window.innerHeight-24); camera.updateProjectionMatrix(); });
-
-  </script>
+        
+        function generateJsonConfig() {
+            const animName = document.getElementById('anim-name').value || 'animation';
+            const frameWidth = parseInt(document.getElementById('frame-width').value) || 64;
+            const frameHeight = parseInt(document.getElementById('frame-height').value) || 64;
+            const animSpeed = parseFloat(document.getElementById('anim-speed').value) || 0.2;
+            
+            const jsonConfig = {
+                spriteSheet: "spritesheet.png", // Esto sería reemplazado por la URL real
+                animations: {
+                    [animName]: {
+                        frames: uploadedImages.length,
+                        width: frameWidth,
+                        height: frameHeight,
+                        speed: animSpeed,
+                        loop: true
+                    }
+                }
+            };
+            
+            jsonOutput.textContent = JSON.stringify(jsonConfig, null, 2);
+            downloadJsonBtn.disabled = false;
+        }
+        
+        // Descargar spritesheet
+        downloadSpriteBtn.addEventListener('click', () => {
+            if (!generatedSpriteSheet) {
+                alert('Primero debes generar un spritesheet.');
+                return;
+            }
+            
+            const link = document.createElement('a');
+            link.download = 'spritesheet.png';
+            link.href = generatedSpriteSheet;
+            link.click();
+        });
+        
+        // Descargar JSON
+        downloadJsonBtn.addEventListener('click', () => {
+            const jsonConfig = jsonOutput.textContent;
+            const blob = new Blob([jsonConfig], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.download = 'animation.json';
+            link.href = url;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        });
+        
+        // Modo 2: Dividir Spritesheet
+        const divideUpload = document.getElementById('divide-upload');
+        const divideInput = document.getElementById('divide-input');
+        const spriteUrl = document.getElementById('sprite-url');
+        const loadUrlBtn = document.getElementById('load-url');
+        const divideBtn = document.getElementById('divide-sprite');
+        const divideCanvas = document.getElementById('divide-canvas');
+        const animationList = document.getElementById('animation-list');
+        const divideJsonOutput = document.getElementById('divide-json-output');
+        const downloadDivideJsonBtn = document.getElementById('download-divide-json');
+        
+        // Elementos del visualizador de animación
+        const animationViewer = document.getElementById('animation-viewer');
+        const animationCanvas = document.getElementById('animation-canvas');
+        const playAnimationBtn = document.getElementById('play-animation');
+        const pauseAnimationBtn = document.getElementById('pause-animation');
+        const stopAnimationBtn = document.getElementById('stop-animation');
+        const animationInfo = document.getElementById('animation-info');
+        
+        let currentSpriteImage = null;
+        
+        // Eventos de arrastrar y soltar para el modo dividir
+        setupDragAndDrop(divideUpload, handleDivideFile);
+        
+        divideUpload.addEventListener('click', () => {
+            divideInput.click();
+        });
+        
+        divideInput.addEventListener('change', (e) => {
+            handleDivideFile(e.target.files);
+        });
+        
+        loadUrlBtn.addEventListener('click', () => {
+            const url = spriteUrl.value.trim();
+            if (url) {
+                loadImageFromUrl(url);
+            } else {
+                alert('Por favor, ingresa una URL válida.');
+            }
+        });
+        
+        function handleDivideFile(files) {
+            if (files.length > 0) {
+                const file = files[0];
+                if (!file.type.match('image.*')) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    loadImageFromDataUrl(e.target.result);
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+        
+        function loadImageFromUrl(url) {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => {
+                currentSpriteImage = img;
+                drawDividePreview();
+            };
+            img.onerror = () => {
+                alert('Error al cargar la imagen desde la URL. Asegúrate de que la URL sea válida y accesible.');
+            };
+            img.src = url;
+        }
+        
+        function loadImageFromDataUrl(dataUrl) {
+            const img = new Image();
+            img.onload = () => {
+                currentSpriteImage = img;
+                drawDividePreview();
+            };
+            img.src = dataUrl;
+        }
+        
+        function drawDividePreview() {
+            if (!currentSpriteImage) return;
+            
+            const ctx = divideCanvas.getContext('2d');
+            divideCanvas.width = currentSpriteImage.width;
+            divideCanvas.height = currentSpriteImage.height;
+            
+            ctx.clearRect(0, 0, divideCanvas.width, divideCanvas.height);
+            ctx.drawImage(currentSpriteImage, 0, 0);
+        }
+        
+        // Dividir spritesheet
+        divideBtn.addEventListener('click', divideSpriteSheet);
+        
+        function divideSpriteSheet() {
+            if (!currentSpriteImage) {
+                alert('Por favor, carga un spritesheet primero.');
+                return;
+            }
+            
+            const frameWidth = parseInt(document.getElementById('divide-width').value) || 64;
+            const frameHeight = parseInt(document.getElementById('divide-height').value) || 64;
+            const offsetX = parseInt(document.getElementById('divide-offset-x').value) || 0;
+            const offsetY = parseInt(document.getElementById('divide-offset-y').value) || 0;
+            const spacing = parseInt(document.getElementById('divide-spacing').value) || 0;
+            
+            const cols = Math.floor((currentSpriteImage.width - offsetX + spacing) / (frameWidth + spacing));
+            const rows = Math.floor((currentSpriteImage.height - offsetY + spacing) / (frameHeight + spacing));
+            
+            dividedFrames = [];
+            animationImages = [];
+            
+            for (let y = 0; y < rows; y++) {
+                for (let x = 0; x < cols; x++) {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = frameWidth;
+                    canvas.height = frameHeight;
+                    const ctx = canvas.getContext('2d');
+                    
+                    const sx = offsetX + x * (frameWidth + spacing);
+                    const sy = offsetY + y * (frameHeight + spacing);
+                    
+                    ctx.drawImage(
+                        currentSpriteImage,
+                        sx, sy, frameWidth, frameHeight,
+                        0, 0, frameWidth, frameHeight
+                    );
+                    
+                    const frameDataUrl = canvas.toDataURL('image/png');
+                    dividedFrames.push(frameDataUrl);
+                    
+                    // Crear imagen para la animación
+                    const img = new Image();
+                    img.src = frameDataUrl;
+                    animationImages.push(img);
+                }
+            }
+            
+            updateAnimationList();
+            generateDivideJsonConfig();
+            downloadDivideJsonBtn.disabled = false;
+            
+            // Mostrar el visualizador de animación
+            animationViewer.style.display = 'block';
+            
+            // Configurar el canvas de animación
+            const animCtx = animationCanvas.getContext('2d');
+            animationCanvas.width = frameWidth;
+            animationCanvas.height = frameHeight;
+            
+            // Dibujar el primer frame
+            if (animationImages.length > 0) {
+                animCtx.clearRect(0, 0, frameWidth, frameHeight);
+                animCtx.drawImage(animationImages[0], 0, 0);
+                updateAnimationInfo();
+            }
+            
+            // Detener cualquier animación previa
+            stopAnimation();
+        }
+        
+        // Controles del visualizador de animación
+        playAnimationBtn.addEventListener('click', playAnimation);
+        pauseAnimationBtn.addEventListener('click', pauseAnimation);
+        stopAnimationBtn.addEventListener('click', stopAnimation);
+        
+        function playAnimation() {
+            if (animationPlaying || animationImages.length === 0) return;
+            
+            const animSpeed = parseFloat(document.getElementById('divide-anim-speed').value) || 0.2;
+            const animLoop = document.getElementById('divide-anim-loop').value === 'true';
+            
+            animationPlaying = true;
+            const animCtx = animationCanvas.getContext('2d');
+            
+            animationInterval = setInterval(() => {
+                currentFrame = (currentFrame + 1) % animationImages.length;
+                
+                // Si no es loop y llegamos al final, detener
+                if (!animLoop && currentFrame === 0) {
+                    stopAnimation();
+                    return;
+                }
+                
+                animCtx.clearRect(0, 0, animationCanvas.width, animationCanvas.height);
+                animCtx.drawImage(animationImages[currentFrame], 0, 0);
+                updateAnimationInfo();
+            }, animSpeed * 1000);
+        }
+        
+        function pauseAnimation() {
+            if (!animationPlaying) return;
+            
+            clearInterval(animationInterval);
+            animationPlaying = false;
+        }
+        
+        function stopAnimation() {
+            clearInterval(animationInterval);
+            animationPlaying = false;
+            currentFrame = 0;
+            
+            if (animationImages.length > 0) {
+                const animCtx = animationCanvas.getContext('2d');
+                animCtx.clearRect(0, 0, animationCanvas.width, animationCanvas.height);
+                animCtx.drawImage(animationImages[0], 0, 0);
+                updateAnimationInfo();
+            }
+        }
+        
+        function updateAnimationInfo() {
+            animationInfo.textContent = `Frame: ${currentFrame + 1}/${animationImages.length}`;
+        }
+        
+        function updateAnimationList() {
+            animationList.innerHTML = '';
+            
+            const animName = document.getElementById('divide-anim-name').value || 'animation';
+            const animSpeed = parseFloat(document.getElementById('divide-anim-speed').value) || 0.2;
+            const animLoop = document.getElementById('divide-anim-loop').value === 'true';
+            
+            const animItem = document.createElement('div');
+            animItem.className = 'animation-item';
+            animItem.innerHTML = `
+                <h4>${animName}</h4>
+                <p>Frames: ${dividedFrames.length}</p>
+                <p>Velocidad: ${animSpeed}s</p>
+                <p>Loop: ${animLoop ? 'Sí' : 'No'}</p>
+                <div class="frame-preview">
+                    ${dividedFrames.slice(0, 10).map((frame, i) => `
+                        <div class="frame">
+                            <img src="${frame}" alt="Frame ${i + 1}">
+                        </div>
+                    `).join('')}
+                    ${dividedFrames.length > 10 ? `<div>+${dividedFrames.length - 10} más</div>` : ''}
+                </div>
+            `;
+            
+            animationList.appendChild(animItem);
+        }
+        
+        function generateDivideJsonConfig() {
+            const animName = document.getElementById('divide-anim-name').value || 'animation';
+            const frameWidth = parseInt(document.getElementById('divide-width').value) || 64;
+            const frameHeight = parseInt(document.getElementById('divide-height').value) || 64;
+            const animSpeed = parseFloat(document.getElementById('divide-anim-speed').value) || 0.2;
+            const animLoop = document.getElementById('divide-anim-loop').value === 'true';
+            
+            const jsonConfig = {
+                spriteSheet: currentSpriteImage.src || "spritesheet.png",
+                animations: {
+                    [animName]: {
+                        frames: dividedFrames.length,
+                        width: frameWidth,
+                        height: frameHeight,
+                        speed: animSpeed,
+                        loop: animLoop
+                    }
+                }
+            };
+            
+            divideJsonOutput.textContent = JSON.stringify(jsonConfig, null, 2);
+        }
+        
+        // Descargar JSON del modo dividir
+        downloadDivideJsonBtn.addEventListener('click', () => {
+            const jsonConfig = divideJsonOutput.textContent;
+            const blob = new Blob([jsonConfig], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const link = document.createElement('a');
+            link.download = 'animation.json';
+            link.href = url;
+            link.click();
+            
+            URL.revokeObjectURL(url);
+        });
+        
+        // Función auxiliar para drag and drop
+        function setupDragAndDrop(element, callback) {
+            element.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                element.classList.add('drag-over');
+            });
+            
+            element.addEventListener('dragleave', () => {
+                element.classList.remove('drag-over');
+            });
+            
+            element.addEventListener('drop', (e) => {
+                e.preventDefault();
+                element.classList.remove('drag-over');
+                callback(e.dataTransfer.files);
+            });
+        }
+    </script>
 </body>
 </html>
